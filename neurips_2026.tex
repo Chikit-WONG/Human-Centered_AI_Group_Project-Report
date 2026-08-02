@@ -1,0 +1,219 @@
+\documentclass{article}
+
+\PassOptionsToPackage{numbers,sort&compress}{natbib}
+\usepackage[preprint]{neurips_2026}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{hyperref}
+\hypersetup{hidelinks}
+\usepackage{url}
+\usepackage{booktabs}
+\usepackage{amsfonts}
+\usepackage{nicefrac}
+\usepackage{microtype}
+\usepackage{xcolor}
+\usepackage{graphicx}
+
+\title{EEG-to-Image Retrieval: Decoding Visual Perception from Brain Signals}
+
+\author{
+Chi Kit Wong \\
+Sida Zhang \\
+Zhiyi Chen \\
+Ziyi Guo \\
+AI Thrust, HKUST(GZ)
+}
+
+\begin{document}
+
+\maketitle
+
+
+\begin{abstract}
+
+Electroencephalography (EEG) provides a non-invasive approach to measure human neural responses during visual perception. In this project, we investigate EEG-to-image retrieval, where the objective is to identify the exact image observed by a subject from a closed gallery of candidate images. We propose a brain-vision co-adaptation framework that jointly learns EEG representations and visual representations to reduce the modality gap between neural signals and pretrained vision models. The framework consists of a trainable EEG representation module, a CLIP-based visual representation module with conservative adaptation, and a session-aware offline matching strategy. Experiments on the THINGS-EEG2 dataset demonstrate strong closed-set retrieval performance, achieving 86.66\% Top-1 accuracy and 98.38\% Top-5 accuracy.
+
+\end{abstract}
+
+
+\section{Introduction}
+
+Human visual perception produces complex neural responses that can be measured using electroencephalography (EEG). Compared with invasive neural recording methods, EEG provides a non-invasive measurement with millisecond-level temporal resolution. Recent EEG-based visual decoding studies have explored how neural signals can reveal human visual representations using large-scale EEG datasets such as THINGS-EEG2~\citep{gifford2022things}. However, decoding visual information from EEG remains challenging due to the noisy nature of neural signals, limited training data, and strong variations across subjects.
+
+In this project, we focus on EEG-to-image retrieval rather than conventional category prediction. Given EEG signals recorded after a subject observes an image, the goal is to retrieve the exact corresponding image from a fixed gallery containing candidate images.
+
+A major challenge in EEG-image alignment is the modality gap between neural representations and visual representations learned by large-scale vision models. Existing approaches often freeze the pretrained visual encoder and train only the EEG encoder, forcing noisy and subject-specific EEG signals to adapt to a rigid visual space. Although pretrained visual models contain rich semantic knowledge, their representations are not directly optimized for human neural responses.
+
+To address this challenge, we develop a brain-vision co-adaptation framework that jointly learns EEG and image representations. The framework learns subject-specific neural patterns through a trainable EEG encoder, adapts pretrained visual representations through a lightweight visual adaptation module, and further exploits session-level information through offline matching strategies. Extensive experiments on THINGS-EEG2 demonstrate the effectiveness of the proposed framework for closed-set EEG-to-image retrieval.
+
+
+\section{Method}
+
+
+\subsection{EEG-to-Image Retrieval Framework}
+
+The proposed framework contains two aligned branches: an EEG branch and an image branch.
+
+The EEG branch receives recorded EEG signals and learns neural representations that capture subject-specific visual responses. The image branch uses a pretrained CLIP image encoder to extract visual representations from candidate images. The objective is to align EEG representations with the corresponding image representations in a shared embedding space.
+
+During training, paired EEG-image samples are optimized using an EEG-to-image contrastive objective. During inference, EEG embeddings are compared with candidate image embeddings using normalized cosine similarity, and the image with the highest similarity score is retrieved.
+
+
+\begin{figure}[h]
+\centering
+\includegraphics[width=0.9\linewidth]{figures/fig_framework.png}
+\caption{Overall EEG-to-image alignment framework. The EEG branch learns neural representations while the image branch adapts pretrained visual representations.}
+\end{figure}
+
+
+\subsection{EEG Representation Learning}
+
+The EEG branch is designed to learn subject-specific neural patterns from recorded brain signals.
+
+Each EEG sample contains 17 posterior EEG channels with 250 time points. The EEG input is first flattened and projected into a 512-dimensional representation. A lightweight residual MLP block is then applied to further capture discriminative neural features.
+
+The purpose of this module is to transform noisy EEG recordings into a compact representation that can be aligned with visual representations extracted from images.
+
+
+\subsection{Visual Representation Adaptation}
+
+The image branch uses CLIP ViT-B/32 as the pretrained visual encoder~\citep{radford2021clip}. CLIP provides strong visual representations learned from large-scale image-text alignment, but its representation space may not perfectly match human neural responses.
+
+Therefore, instead of completely freezing the visual representation, we introduce a lightweight LoRA-based adaptation module~\citep{hu2021lora}. The goal of this adaptation is not to replace the pretrained visual knowledge, but to allow controlled adjustment of the visual space toward neural representations.
+
+The original CLIP parameters remain frozen, while only the low-rank adaptation parameters are updated. This design enables the model to reduce the modality gap while preserving the semantic structure learned from large-scale visual data.
+
+
+\subsection{Joint Training Objective and Two-Time-Scale Optimization}
+
+The EEG encoder and image adaptation module are jointly optimized using the same EEG-to-image contrastive objective.
+
+However, the two branches use different update speeds. The EEG encoder needs to learn subject-specific neural patterns from EEG signals, so it is updated more aggressively. In contrast, the image branch already contains strong pretrained visual knowledge and therefore requires only conservative adaptation.
+
+The EEG learning rate is set to $5\times10^{-4}$, while the image-side LoRA learning rate is set to $5\times10^{-5}$. This two-time-scale optimization strategy balances rapid neural representation learning and preservation of pretrained visual semantics.
+
+
+\subsection{Session-aware Offline Matching}
+
+After representation learning, we further investigate session-aware offline matching as a post-processing decoder.
+
+Independent retrieval selects the highest similarity image for each EEG query separately. However, this strategy may cause multiple EEG queries to select the same image. To address this issue, we formulate retrieval as a global assignment problem based on the learned similarity matrix.
+
+Hungarian matching provides a one-to-one assignment strategy~\citep{kuhn1955hungarian}, while Sinkhorn matching provides a softer transport-based decoding approach~\citep{cuturi2013sinkhorn}. This module does not replace representation learning, but extracts additional information from the known session structure.
+
+
+\section{Experiments}
+
+
+\subsection{Dataset and Implementation Details}
+
+We evaluate our framework on the THINGS-EEG2 dataset. The experiments include 10 subjects, 17 posterior EEG channels, and a closed gallery containing 200 candidate images.
+
+\begin{figure}[h]
+\centering
+\includegraphics[width=0.75\linewidth]{figures/fig_dataset_setup.png}
+\caption{Experimental setup including THINGS-EEG2 dataset, subject-specific evaluation, EEG channel selection, and trial averaging strategy.}
+\end{figure}
+
+
+For training, EEG signals are averaged over four trials, while testing uses averaged signals from 80 trials. Subject-specific models are trained independently.
+
+The EEG encoder uses a linear projection from $17\times250$ input dimensions to 512 dimensions followed by one residual MLP block. The image encoder is CLIP ViT-B/32 with LoRA adaptation. The LoRA rank and alpha are both set to 32.
+
+The model is trained using AdamW for 25 epochs with a batch size of 512.
+
+
+\subsection{Comparison with Existing Methods}
+
+We compare our framework with several existing EEG-to-image retrieval methods under the standard 200-way retrieval setting. The comparison includes representative approaches based on different EEG-image alignment strategies, including NICE~\citep{li2024nice}, ATM~\citep{li2024atm}, UBP~\citep{chen2025ubp}, Hierarchical Visual Embeddings~\citep{hierarchical2026}, EEGiT~\citep{eegit2026}, Shallow Alignment~\citep{shallow2026}, and HCF~\citep{hcf2026}.
+
+\begin{table}[h]
+\caption{Comparison with existing EEG-to-image retrieval methods.}
+\centering
+\begin{tabular}{lcc}
+\toprule
+Method & Top-1 (\%) & Top-5 (\%) \\
+\midrule
+NICE & 21.52 & 51.57 \\
+ATM-S & 26.13 & 55.32 \\
+UBP & 50.90 & 79.70 \\
+Hierarchical Visual Embeddings & 75.70 & 94.60 \\
+EEGiT & 70.40 & 95.10 \\
+Shallow Alignment & 82.60 & 97.70 \\
+HCF & 84.60 & 98.20 \\
+Ours & \textbf{86.66} & \textbf{98.38} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+
+Our framework obtains the highest reported accuracy among the listed methods in this comparison. The results demonstrate that jointly optimizing EEG representations and adapting visual representations can effectively reduce the modality gap between human neural signals and pretrained visual models.
+
+
+\subsection{Ablation Study}
+
+We evaluate the contribution of visual adaptation and two-time-scale optimization.
+
+The first setting freezes the image encoder and trains only the EEG branch. This setting represents conventional EEG-image alignment approaches, where EEG representations are forced to match a fixed visual representation space.
+
+The second setting introduces LoRA-based visual adaptation, allowing the visual representation space to adjust toward neural representations. The third setting applies conservative TTUR, where the image branch uses a smaller learning rate than the EEG branch. This experiment evaluates whether controlled visual updates can improve alignment while preserving pretrained visual semantics.
+
+\begin{figure}[h]
+\centering
+\includegraphics[width=0.85\linewidth]{figures/fig_ablation.png}
+\caption{Ablation study showing the effect of image-side adaptation and conservative two-time-scale optimization.}
+\end{figure}
+
+
+The results show that adapting the visual representation improves EEG-image alignment. Furthermore, conservative visual updates provide additional improvement by preventing excessive changes to pretrained visual semantics.
+
+
+\subsection{Effect of Session-aware Offline Matching}
+
+After representation learning, we further evaluate the effectiveness of session-aware offline matching as a post-processing decoder.
+
+Independent retrieval selects the highest similarity image for each EEG query independently. However, this strategy may produce duplicated image assignments when multiple EEG queries select the same candidate. To address this issue, we utilize global matching strategies based on the learned similarity matrix.
+
+We compare independent retrieval with Hungarian matching and Sinkhorn matching under different retrieval scenarios.
+
+\begin{table}[h]
+\caption{Effect of session-aware offline matching.}
+\centering
+\begin{tabular}{lccc}
+\toprule
+Scenario & Independent & Hungarian & Sinkhorn \\
+\midrule
+200 EEG $\times$ 200 images
+& 182/200 (91.0\%)
+& 200/200
+& -- \\
+
+200 EEG $\times$ 190 images
+& 173/200 (86.5\%)
+& 189/200
+& -- \\
+
+220 EEG $\times$ 200 images
+& 199/220 (90.45\%)
+& --
+& 212/220 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+
+The results show that offline matching can further improve retrieval consistency by exploiting known session-level structure. Hungarian matching is effective for one-to-one assignment scenarios, while Sinkhorn matching provides a softer transport-based solution for cases with repeated EEG queries or many-to-one structures. Importantly, offline matching serves as a post-processing module and complements, rather than replaces, representation learning.
+
+
+\section{Conclusion}
+
+In this project, we present a brain-vision co-adaptation framework for EEG-to-image retrieval. Instead of forcing noisy EEG signals to fit a fixed visual representation space, our framework jointly learns neural representations and adapts visual representations in a controlled manner.
+
+The combination of EEG representation learning, conservative visual adaptation, and session-aware matching enables effective closed-set image retrieval from human brain signals. The proposed framework provides a step toward practical human-centered neural interfaces and future EEG-based visual reconstruction systems.
+
+
+\bibliographystyle{unsrtnat}
+\bibliography{references}
+
+
+\end{document}
