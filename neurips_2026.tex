@@ -1,7 +1,7 @@
 \documentclass{article}
 
 \PassOptionsToPackage{numbers,sort&compress}{natbib}
-\usepackage[preprint]{neurips_2026}
+\usepackage[main, final]{neurips_2026}
 \usepackage[utf8]{inputenc}
 \usepackage[T1]{fontenc}
 \usepackage{amsmath}
@@ -99,7 +99,7 @@ The input uses 17 posterior channels and 250 time samples. We flatten the $17\ti
 
 \subsection{Conservative image-side LoRA adaptation}
 
-The image branch starts from CLIP ViT-B/32 pretrained on LAION data. Original CLIP weights remain frozen, and LoRA adapters are inserted into linear modules. The reference setting uses rank $r=32$, scaling $\alpha=32$, zero dropout, and Gaussian adapter initialization. If $W_0$ is a frozen image-layer matrix, the adapted layer is
+The image branch starts from a pretrained CLIP ViT-B/32 image checkpoint. Original CLIP weights remain frozen, and LoRA adapters are inserted into linear modules. The reference setting uses rank $r=32$, scaling $\alpha=32$, zero dropout, and Gaussian adapter initialization. If $W_0$ is a frozen image-layer matrix, the adapted layer is
 \begin{equation}
 h'=W_0h+\frac{\alpha}{r}BAh,
 \label{eq:lora}
@@ -134,14 +134,7 @@ These structured methods naturally yield one assignment per query rather than a 
 
 \subsection{Dataset, splits, and metrics}
 
-We use THINGS-EEG2~\citep{gifford2022things}, containing EEG responses to natural object images from ten subjects. Following the standard zero-shot split, training and test concepts are disjoint, and evaluation uses 200 unseen test images. We select 17 posterior channels. Training inputs average four trials; standard test inputs average 80 repeated trials. Subject-dependent experiments train one model per subject. Strict LOSO trains on nine subjects and evaluates the tenth, producing ten folds.
-
-\begin{figure}[t]
-  \centering
-  \includegraphics[width=0.72\linewidth]{figures/fig_dataset_setup.png}
-  \caption{THINGS-EEG2 protocol used by our method. The primary experiment is subject-dependent, exact-image, 200-way retrieval. Strict LOSO holds out every subject in turn. Repeated-trial averaging improves signal-to-noise ratio but is explicitly distinguished from single-trial decoding.}
-  \label{fig:dataset}
-\end{figure}
+We use THINGS-EEG2~\citep{gifford2022things}, containing EEG responses to natural object images from ten subjects. Following the standard zero-shot split, training and test concepts are disjoint, and evaluation uses 200 unseen test images. We select 17 posterior channels. Training inputs average four trials; standard test inputs average 80 repeated trials. Subject-dependent experiments train one model per subject. Strict LOSO trains on nine subjects and evaluates the tenth, producing ten folds. Repeated-trial averaging improves signal-to-noise ratio and is explicitly distinguished from single-trial decoding.
 
 The primary subject-dependent result averages seeds $\{42,43,44,45,46\}$. We report the mean and sample standard deviation of the five seed-level ten-subject macro means. LOSO and the focused formal confirmation use seed 42 and are labeled single-seed. Random Top-1 and Top-5 levels in a 200-image gallery are $0.5\%$ and $2.5\%$, respectively.
 
@@ -209,7 +202,7 @@ The five seed-level subject-dependent macro means range from $85.60\%$ to $87.35
 
 \begin{figure}[t]
   \centering
-  \includegraphics[width=0.92\linewidth]{figures/fig_loso_subjects.png}
+  \includegraphics[width=0.88\linewidth]{figures/fig_loso_subjects.png}
   \caption{Strict leave-one-subject-out results at seed 42. Bars show independent-retrieval Top-1 and Top-5 for each held-out subject; dashed lines mark macro means. This is a single-seed generalization diagnostic rather than a five-seed population estimate.}
   \label{fig:loso}
 \end{figure}
@@ -217,22 +210,14 @@ The five seed-level subject-dependent macro means range from $85.60\%$ to $87.35
 \subsection{Strict paired test of asymmetric co-adaptation}
 \label{sec:abc}
 
-The A/B/C experiment directly addresses whether the improvement is merely caused by our EEG encoder. All three settings use subject 08, seed 42, the same EEG encoder architecture and initialization, identical samples, objective, batch order, and training budget. Only image-side optimization differs. Table~\ref{tab:abc} shows that training the EEG encoder alone is insufficient: allowing image-side LoRA adaptation raises Top-1 by 32 points, and slowing the image update relative to the EEG update adds a further 27.5 points.
+The A/B/C experiment directly addresses whether the improvement is merely caused by our EEG encoder. All three settings use subject 08, seed 42, the same EEG encoder architecture and initialization, identical samples, objective, batch order, and training budget. Only image-side optimization differs. Figure~\ref{fig:ablation} shows that training the EEG encoder alone is insufficient: allowing image-side LoRA adaptation raises Top-1 by 32 points, and slowing the image update relative to the EEG update adds a further 27.5 points.
 
-\begin{table}[t]
-\centering
-\caption{Strict paired subject-08/seed-42 ablation. The EEG encoder is identical in all rows.}
-\label{tab:abc}
-\begin{tabular}{lrrrcc}
-\toprule
-Setting & EEG LR & Image LR & Ratio & Top-1 & Top-5 \\
-\midrule
-A: EEG-only, frozen image & $5\!\times\!10^{-4}$ & 0 & -- & 29.5 & 65.0 \\
-B: equal-rate LoRA & $5\!\times\!10^{-4}$ & $5\!\times\!10^{-4}$ & 1:1 & 61.5 & 92.0 \\
-C: asymmetric LoRA & $5\!\times\!10^{-4}$ & $5\!\times\!10^{-5}$ & 10:1 & \textbf{89.0} & \textbf{100.0} \\
-\bottomrule
-\end{tabular}
-\end{table}
+\begin{figure}[t]
+  \centering
+  \includegraphics[width=0.82\linewidth]{figures/fig_ablation.png}
+  \caption{Strict paired subject-08/seed-42 TTUR ablation. All arms use the identical EEG encoder: A freezes the image encoder, B adds equal-rate image-side LoRA, and C uses slower image-side LoRA updates. Values are independent-retrieval accuracy (\%).}
+  \label{fig:ablation}
+\end{figure}
 
 Relative to A, C gains $+59.5$ Top-1 and $+35.0$ Top-5 points. Because the EEG architecture is controlled, the result supports our proposed innovation: high performance depends on dual-side co-adaptation and its asymmetric update schedule, not only on a newly chosen EEG encoder. It does not, by itself, prove that 10:1 is universally optimal; the next experiment examines nearby settings.
 
@@ -265,11 +250,11 @@ Rank & EEG LR & Ratio & Top-1 & Top-5 \\
 \end{tabular}
 \end{table}
 
-We then compare the selected configuration with the reference $(32,5\times10^{-4},10)$ across three subject-08 validation seeds and finally all ten subjects at seed 42. The selected validation mean is $34.44\%/63.74\%$ versus $31.23\%/60.97\%$ for the reference. In the formal paired test, Figure~\ref{fig:hparam} shows an average Top-1 increase from $85.85\%$ to $87.70\%$; Top-5 changes from $98.35\%$ to $98.30\%$. The selected setting wins Top-1 on eight of ten subjects, but it changes rank, absolute rate, and ratio jointly and uses one formal seed. We therefore retain the five-seed reference as the headline result and treat $87.70\%$ as focused follow-up evidence.
+We then compare the selected configuration with the reference $(32,5\times10^{-4},10)$ across three subject-08 validation seeds and finally all ten subjects at seed 42. The selected validation mean is $34.44\%/63.74\%$ versus $31.23\%/60.97\%$ for the reference. In the formal paired test, Figure~\ref{fig:hparam} shows an average Top-1 increase from $85.85\%$ to $87.70\%$; Top-5 changes from $98.35\%$ to $98.30\%$. The selected setting wins Top-1 on eight of ten subjects, but it changes rank, absolute rate, and ratio jointly and uses one formal seed. The reference was protocol-locked before this focused study and is the only setting evaluated over all ten subjects and five seeds. We therefore do not retroactively replace the stronger-evidence headline with a post-hoc single-seed follow-up; the grid shows that asymmetric co-adaptation is robust to nearby choices, not that the original 10:1 ratio is globally optimal.
 
 \begin{figure}[t]
   \centering
-  \includegraphics[width=0.96\linewidth]{figures/fig_hparam_confirmation.png}
+  \includegraphics[width=0.92\linewidth]{figures/fig_hparam_confirmation.png}
   \caption{Formal ten-subject seed-42 confirmation of the validation-selected hyperparameter setting against the reference configuration. Top-1 improves by 1.85 points on average, while Top-5 is saturated and essentially unchanged.}
   \label{fig:hparam}
 \end{figure}
@@ -304,7 +289,7 @@ The non-bijective suite in Figure~\ref{fig:matching_robustness} changes that con
 
 \begin{figure}[t]
   \centering
-  \includegraphics[width=0.98\linewidth]{figures/fig_matching_robustness.png}
+  \includegraphics[width=0.92\linewidth]{figures/fig_matching_robustness.png}
   \caption{Matching robustness under missing, duplicate, and distractor items, including disjoint-trial duplicate EEG. Hard one-to-one assignment exposes unmatched queries when bijection is false.}
   \label{fig:matching_robustness}
 \end{figure}
@@ -330,7 +315,7 @@ Scale removed + epsilon schedule & 90/90 & 85/90 & 61.44\%\\
 
 On the standard matrices, scale removal changes Sinkhorn assignment accuracy from $31.5\%$ to $33.0\%$ for NICE, from $65.0\%$ to $57.0\%$ for ATM-S, and leaves our method at $100.0\%$. The result rejects the simple hypothesis that better numerical convergence necessarily yields better matching. It also argues against spending the course-project budget on a learned matrix-transform network without a validation-defined objective and leakage-safe training split: convergence is a numerical property, whereas correct assignment depends on calibrated semantic structure.
 
-\section{Human-Centered Implications and Limitations}
+\section{Discussion and Human-Centered Implications}
 \label{sec:human}
 
 \paragraph{What the system does and does not infer.}
@@ -351,7 +336,17 @@ Flattening discards explicit channel topology, and LoRA placement is not neuroph
 Our asymmetric EEG--image co-adaptation reaches $86.66\%$ Top-1 and $98.38\%$ Top-5 over ten subjects and five seeds. With the EEG encoder fixed, the strict A/B/C ablation rises from $29.5\%$ to $61.5\%$ and $89.0\%$, isolating equal-rate and asymmetric image adaptation; focused tuning reaches $87.70\%$, while strict LOSO falls to $20.40\%$. Hungarian and Sinkhorn improve valid one-to-one assignments, not embeddings or standard Top-5, and weaken when correspondence fails.
 
 \section*{Author contribution statement}
-Clearly explain the contribution of each group member.
+\label{sec:contributions}
+\textbf{Chi Kit Wong}: overall brain--image co-adaptive framework and synchronized joint optimization with asymmetric learning rates. \textbf{Sida Zhang}: session-aware offline decoding as weighted bipartite matching and Hungarian/Sinkhorn analysis. \textbf{Zhiyi Chen}: lightweight residual-MLP EEG representation module and hyperparameter analysis. \textbf{Ziyi Guo}: CLIP/LoRA image adaptation and its conservative image-side learning rate. All members contributed equally to report writing, result interpretation, revision, and presentation preparation.
+
+\paragraph{Generative-AI disclosure.}
+OpenAI Codex assisted with code/log inspection, LaTeX/Markdown formatting, and language editing, including prompts to audit the page limit, reconcile saved CSV/JSON results, and repair equations. All outputs were reviewed and revised by the authors; drafts are retained in the project task history, and final claims remain the authors' responsibility.
+
+\phantomsection
+\label{sec:body_end}
+\clearpage
+\phantomsection
+\label{sec:references}
 
 \bibliographystyle{unsrtnat}
 \bibliography{references}
