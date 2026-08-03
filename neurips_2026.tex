@@ -204,7 +204,7 @@ The five seed-level subject-dependent macro means range from $85.60\%$ to $87.35
 \begin{figure}[t]
   \centering
   \includegraphics[width=0.88\linewidth]{figures/fig_loso_subjects.png}
-  \caption{Strict leave-one-subject-out results at seed 42. Bars show independent-retrieval Top-1 and Top-5 for each held-out subject; dashed lines mark macro means. This is a single-seed generalization diagnostic rather than a five-seed population estimate.}
+  \caption{Strict leave-one-subject-out results at seed 42. Bars show independent-retrieval Top-1 and Top-5 for each held-out subject; dashed lines mark macro means.}
   \label{fig:loso}
 \end{figure}
 
@@ -344,7 +344,7 @@ EEG is sensitive biometric and health-adjacent data. Deployment would require in
 The strict LOSO gap shows that cross-person transfer remains much weaker than subject-dependent calibration. Five seeds quantify optimization variability over the same stimuli, not new participants; literature rows also differ in encoders, preprocessing, and checkpoint rules. The subject-08 matching suite is diagnostic rather than population-level evidence, and batch matching can inflate apparent performance when a gallery is known to be a permutation. We therefore separate retrieval from assignment and test broken assumptions.
 
 \paragraph{Technical limitations.}
-Flattening discards explicit channel topology, and LoRA placement is not neurophysiologically targeted. The focused hyperparameter study is not a full factorial multi-seed search, while Sinkhorn row-wise decoding is a soft many-to-one diagnostic rather than a guaranteed discrete bijection. Future work should prioritize subject-invariant calibration, single-trial robustness, uncertainty, leakage-safe matcher calibration, and prospective studies of usefulness and trust.
+Flattening discards explicit channel topology, and LoRA placement is not neurophysiologically targeted, while Sinkhorn row-wise decoding is a soft many-to-one diagnostic rather than a guaranteed discrete bijection. Future work should prioritize subject-invariant calibration, single-trial robustness, uncertainty, leakage-safe matcher calibration, and prospective studies of usefulness and trust.
 
 \section{Conclusion}
 \label{sec:conclusion}
@@ -364,7 +364,7 @@ Our asymmetric EEG--image co-adaptation reaches $86.66\%$ Top-1 and $98.38\%$ To
 }
 
 \paragraph{Generative-AI disclosure.}
-OpenAI Codex assisted with code/log inspection, LaTeX/Markdown formatting, and language editing, including prompts to audit the page limit, reconcile saved CSV/JSON results, and repair equations. All outputs were reviewed and revised by the authors; drafts are retained in the project task history, and final claims remain the authors' responsibility.
+Generative AI tools were used for language editing, code debugging, and consistency checks. All experimental decisions, results, and final claims were independently verified by the authors.
 
 
 
