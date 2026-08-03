@@ -8,6 +8,7 @@
 \usepackage{amsfonts}
 \usepackage{booktabs}
 \usepackage{nicefrac}
+\usepackage{enumitem}
 \usepackage{xcolor}
 \usepackage{graphicx}
 \usepackage{url}
@@ -214,7 +215,7 @@ The A/B/C experiment directly addresses whether the improvement is merely caused
 
 \begin{figure}[t]
   \centering
-  \includegraphics[width=0.82\linewidth]{figures/fig_ablation.png}
+  \includegraphics[width=0.78\linewidth]{figures/fig_ablation.png}
   \caption{Strict paired subject-08/seed-42 TTUR ablation. All arms use the identical EEG encoder: A freezes the image encoder, B adds equal-rate image-side LoRA, and C uses slower image-side LoRA updates. Values are independent-retrieval accuracy (\%).}
   \label{fig:ablation}
 \end{figure}
@@ -227,7 +228,7 @@ The focused validation grid crosses LoRA rank $r\in\{32,64\}$, EEG learning rate
 
 \begin{table}[t]
 \centering
-\caption{Focused subject-08/seed-42 validation grid (\%). Image LR is $\eta_e/\rho$. Bold denotes the Top-1-selected setting.}
+\caption{Focused subject-08/seed-42 validation grid (\%). Image LR is $\eta_e/\rho$. Bold marks the best value in each metric; Top-1 determines the selected setting.}
 \label{tab:hparam_grid}
 \setlength{\tabcolsep}{5pt}
 \begin{tabular}{rrrrr}
@@ -254,7 +255,7 @@ We then compare the selected configuration with the reference $(32,5\times10^{-4
 
 \begin{figure}[t]
   \centering
-  \includegraphics[width=0.92\linewidth]{figures/fig_hparam_confirmation.png}
+  \includegraphics[width=0.90\linewidth]{figures/fig_hparam_confirmation.png}
   \caption{Formal ten-subject seed-42 confirmation of the validation-selected hyperparameter setting against the reference configuration. Top-1 improves by 1.85 points on average, while Top-5 is saturated and essentially unchanged.}
   \label{fig:hparam}
 \end{figure}
@@ -337,7 +338,15 @@ Our asymmetric EEG--image co-adaptation reaches $86.66\%$ Top-1 and $98.38\%$ To
 
 \section*{Author contribution statement}
 \label{sec:contributions}
-\textbf{Chi Kit Wong}: overall brain--image co-adaptive framework and synchronized joint optimization with asymmetric learning rates. \textbf{Sida Zhang}: session-aware offline decoding as weighted bipartite matching and Hungarian/Sinkhorn analysis. \textbf{Zhiyi Chen}: lightweight residual-MLP EEG representation module and hyperparameter analysis. \textbf{Ziyi Guo}: CLIP/LoRA image adaptation and its conservative image-side learning rate. All members contributed equally to report writing, result interpretation, revision, and presentation preparation.
+{\small
+\begin{itemize}[nosep,leftmargin=*]
+  \item \textbf{Chi Kit Wong:} Overall brain--image co-adaptive framework and synchronized asymmetric joint optimization.
+  \item \textbf{Sida Zhang:} Session-aware offline decoding as weighted bipartite matching; Hungarian/Sinkhorn analysis.
+  \item \textbf{Zhiyi Chen:} Lightweight residual-MLP EEG representation module; hyperparameter analysis.
+  \item \textbf{Ziyi Guo:} CLIP/LoRA image adaptation; conservative image-side learning rate.
+\end{itemize}
+\noindent\textbf{Equal contribution.} All members contributed equally to report writing, result interpretation, revision, and presentation preparation.
+}
 
 \paragraph{Generative-AI disclosure.}
 OpenAI Codex assisted with code/log inspection, LaTeX/Markdown formatting, and language editing, including prompts to audit the page limit, reconcile saved CSV/JSON results, and repair equations. All outputs were reviewed and revised by the authors; drafts are retained in the project task history, and final claims remain the authors' responsibility.
