@@ -96,11 +96,11 @@ No knowledge that gallery images are unique is used in Equation~\ref{eq:topk}.
 
 \subsection{EEG encoder}
 
-The input uses 17 posterior channels and 250 time samples. We flatten the $17\times250$ response, project it to 512 dimensions, and apply one residual two-layer MLP block with SiLU activation and layer normalization. This intentionally compact architecture limits capacity relative to the image backbone. The output is L2-normalized as in Equation~\ref{eq:embeddings}. Because the strict A/B/C experiment in Section~\ref{sec:abc} uses this identical EEG architecture in all conditions, its differences cannot be attributed to replacing the EEG encoder.
+The input uses 17 posterior channels and 250 time samples. We flatten the $17\times250$ response, project it to 512 dimensions, and apply one residual two-layer MLP block with SiLU activation and layer normalization. This intentionally compact architecture limits capacity relative to the image backbone. The output is L2-normalized as in Equation~\ref{eq:embeddings}. Because the strict A/B/C experiment in Section~\ref{sec:abc} uses this identical EEG architecture in all conditions, its differences cannot be attributed to replacing the EEG encoder. Exact layer shapes, bias and dropout choices, initialization, and trainable-parameter counts are provided in Appendix~\ref{app:eeg_encoder}.
 
 \subsection{Conservative image-side LoRA adaptation}
 
-The image branch starts from a pretrained CLIP ViT-B/32 image checkpoint. Original CLIP weights remain frozen, and LoRA adapters are inserted into linear modules. The reference setting uses rank $r=32$, scaling $\alpha=32$, zero dropout, and Gaussian adapter initialization. If $W_0$ is a frozen image-layer matrix, the adapted layer is
+The image branch starts from a pretrained CLIP ViT-B/32 image checkpoint. Original CLIP weights remain frozen, and LoRA adapters are inserted into linear modules. The reference setting uses rank $r=32$, scaling $\alpha=32$, zero dropout, and Gaussian adapter initialization. The exact checkpoint, image transform, target-module list, initialization semantics, and parameter count are specified in Appendix~\ref{app:image_lora}. If $W_0$ is a frozen image-layer matrix, the adapted layer is
 \begin{equation}
 h'=W_0h+\frac{\alpha}{r}BAh,
 \label{eq:lora}
@@ -135,7 +135,7 @@ These structured methods naturally yield one assignment per query rather than a 
 
 \subsection{Dataset, splits, and metrics}
 
-We use THINGS-EEG2~\citep{gifford2022things}, containing EEG responses to natural object images from ten subjects. Following the standard zero-shot split, training and test concepts are disjoint, and evaluation uses 200 unseen test images. We select 17 posterior channels. Training inputs average four trials; standard test inputs average 80 repeated trials. Subject-dependent experiments train one model per subject. Strict LOSO trains on nine subjects and evaluates the tenth, producing ten folds. Repeated-trial averaging improves signal-to-noise ratio and is explicitly distinguished from single-trial decoding.
+We use THINGS-EEG2~\citep{gifford2022things}, containing EEG responses to natural object images from ten subjects. Following the standard zero-shot split, training and test concepts are disjoint, and evaluation uses 200 unseen test images. We select 17 posterior channels. Training inputs average four trials; standard test inputs average 80 repeated trials. Subject-dependent experiments train one model per subject. Strict LOSO trains on nine subjects and evaluates the tenth, producing ten folds. Repeated-trial averaging improves signal-to-noise ratio and is explicitly distinguished from single-trial decoding. Appendix~\ref{app:data_preprocessing} gives the complete split statistics, channel list, time window, and preprocessing audit.
 
 The primary subject-dependent result averages seeds $\{42,43,44,45,46\}$. We report the mean and sample standard deviation of the five seed-level ten-subject macro means. LOSO and the focused formal confirmation use seed 42 and are labeled single-seed. Random Top-1 and Top-5 levels in a 200-image gallery are $0.5\%$ and $2.5\%$, respectively.
 
@@ -384,16 +384,212 @@ OpenAI Codex assisted with code/log inspection, LaTeX/Markdown formatting, and l
 \section{Additional Experimental Details}
 \label{app:experimental_details}
 
-This appendix provides additional implementation details, complete
-experimental results, and supplementary analyses.
+This appendix records the implementation details needed to interpret and
+reproduce the reported experiments. In particular, it distinguishes the
+upstream 250-Hz whitened EEG derivative from the transformations performed by
+our own data loader.
 
-\subsection{Additional Implementation Details}
+\subsection{THINGS-EEG2 dataset and EEG preprocessing}
+\label{app:data_preprocessing}
 
-% Add implementation details here.
+THINGS-EEG2 contains ten participants and uses disjoint training and test
+concepts~\citep{gifford2022things}. Table~\ref{tab:dataset_details} summarizes
+the split used in this work. Counts are per participant; consequently, the
+training and test partitions contain 66,160 and 16,000 recorded trials per
+participant before averaging.
+
+\begin{table}[h]
+  \centering
+  \caption{THINGS-EEG2 split statistics used by our retrieval experiments.
+  Training and test concepts do not overlap. Counts are per participant.}
+  \label{tab:dataset_details}
+  \setlength{\tabcolsep}{7pt}
+  \begin{tabular}{lrr}
+    \toprule
+    Property & Training split & Test split \\
+    \midrule
+    Participants & 10 & 10 \\
+    Object concepts & 1,654 & 200 \\
+    Images per concept & 10 & 1 \\
+    Unique stimulus images & 16,540 & 200 \\
+    EEG repetitions per image & 4 & 80 \\
+    EEG trials per participant & 66,160 & 16,000 \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+Across both splits, this yields 16,740 unique stimulus images and 82,160 EEG
+trials per participant.
+
+\paragraph{Operational tensors and channels.}
+For each participant, the serialized derivative tensors have shapes
+$16{,}540\times4\times63\times250$ for training and
+$200\times80\times63\times250$ for test (image, repetition, channel, time).
+The model retains the following 17 posterior electrodes, in this exact order:
+P7, P5, P3, P1, Pz, P2, P4, P6, P8, PO7, PO3, POz, PO4, PO8, O1, Oz, and O2.
+The original acquisition rate was 1,000 Hz. The local derivative is resampled
+to 250 Hz. Under the accompanying 250-Hz derivative convention, the model's
+$[0,250)$ slice represents the post-stimulus interval $[0,1{,}000)$ ms.
+Table~\ref{tab:eeg_preprocessing} separates upstream preparation from the
+operations executed inside our project.
+
+\begin{table}[h]
+  \centering
+  \caption{EEG preprocessing audit. ``Upstream'' denotes preparation of the
+  local \texttt{Preprocessed\_data\_250Hz\_whiten} derivative; ``project-side''
+  denotes operations executed by our training and evaluation code.}
+  \label{tab:eeg_preprocessing}
+  \small
+  \setlength{\tabcolsep}{5pt}
+  \begin{tabular}{p{0.22\linewidth}p{0.71\linewidth}}
+    \toprule
+    Step & Applied operation \\
+    \midrule
+    Filtering and sampling & EEG was acquired at 1,000 Hz with the dataset's
+    online 0.1--100-Hz filter~\citep{gifford2022things}. The upstream derivative
+    resamples to 250 Hz. Our loader applies no additional temporal filtering or
+    resampling. \\
+    Baseline and crop & The accompanying derivative implementation epochs
+    $-200$ to $1{,}000$ ms, subtracts the $-200$ to 0-ms mean separately for
+    each epoch and channel, and then discards the prestimulus samples. Our model
+    receives 250 post-stimulus samples and applies no further baseline
+    correction. \\
+    Artifact handling & The dataset paper reports no further artifact
+    correction after target-event exclusion~\citep{gifford2022things}; neither
+    the accompanying derivative implementation nor the project loader adds ICA
+    or amplitude-threshold rejection. \\
+    Normalization & The accompanying derivative implementation applies
+    session-wise multivariate noise normalization (MVNN) using a
+    shrinkage-covariance transform across channels, with covariance estimated
+    from the training partition only. This is not independent per-channel
+    $z$-scoring. The project loader adds no channel-wise standardization. \\
+    Trial averaging & The loader takes an unweighted arithmetic mean along the
+    repetition axis. Thus, each training item averages its four stored trials,
+    and each standard test query averages its 80 stored trials. No
+    session-dependent weighting or post-average renormalization is used. \\
+    Data augmentation & No explicit EEG augmentation and no stochastic image
+    augmentation are used. Dataset shuffling and minibatch sampling are not
+    treated as augmentation. \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+The tensor dimensions and the 250-Hz/whitened designation are corroborated by
+the repository's validated runtime records and directory contract; the
+\texttt{.pt} files themselves do not contain a command-level preprocessing
+manifest. Baseline correction and MVNN details are therefore attributed to the
+accompanying derivative-preprocessing implementation rather than claimed as
+byte-level provenance. Channel selection, temporal slicing, trial averaging,
+and the absence of additional normalization or stochastic augmentation were
+verified from the project loader and training/evaluation entry points. For
+comparison, the standard BioTrain/BioTest matrices use a $-200$ to 800-ms
+epoch, 100-Hz sampling, 17 posterior channels, and session-wise
+MVNN~\citep{gifford2022things}; our experiments instead consume the separate
+0--1,000-ms, 250-Hz, 63-channel derivative before project-side channel
+selection.
+
+\subsection{EEG encoder specification}
+\label{app:eeg_encoder}
+
+Table~\ref{tab:eeg_encoder_details} expands the phrase ``residual two-layer
+MLP'' used in the main text. The input projection precedes one identity-skip
+residual block; it is not part of the two-layer feed-forward branch.
+
+\begin{table}[h]
+  \centering
+  \caption{Exact EEG encoder used by the reported formal runs. Parameter counts
+  include trainable weights and biases.}
+  \label{tab:eeg_encoder_details}
+  \small
+  \setlength{\tabcolsep}{4.5pt}
+  \begin{tabular}{llllr}
+    \toprule
+    Stage & Input $\rightarrow$ output & Bias/affine & Operation & Parameters \\
+    \midrule
+    Reshape & $17\times250\rightarrow4{,}250$ & -- & Flatten & 0 \\
+    Input projection & $4{,}250\rightarrow512$ & Yes & Linear & 2,176,512 \\
+    Residual FFN--1 & $512\rightarrow512$ & No & Linear, SiLU & 262,144 \\
+    Regularization & $512\rightarrow512$ & -- & Dropout $p=0.1$ & 0 \\
+    Residual FFN--2 & $512\rightarrow512$ & No & Linear & 262,144 \\
+    Skip and norm & $512\rightarrow512$ & LN only$^{*}$ & Add, LayerNorm & 1,024 \\
+    \midrule
+    \multicolumn{4}{l}{EEG encoder total} & \textbf{2,701,824} \\
+    \bottomrule
+  \end{tabular}
+
+  \vspace{2pt}
+  {\footnotesize $^{*}$LayerNorm has trainable scale and offset; the identity
+  skip has no parameters. LayerNorm uses $\epsilon=10^{-6}$.}
+\end{table}
+
+There is no activation immediately after the input projection, no learned skip
+projection, and no BatchNorm. Dropout appears only between SiLU and the second
+residual-branch linear layer. The 512-dimensional encoder output is L2
+normalized outside the encoder before similarity computation. Model
+initialization follows the pinned Transformers \texttt{post\_init} path:
+linear weights are sampled from $\mathcal{N}(0,0.02^2)$, linear biases are
+zero, and LayerNorm scale and offset are initialized to one and zero. The
+joint brain-side module additionally learns one scalar logit scale initialized
+to 2.0, giving 2,701,825 trainable brain-side parameters when that scalar is
+included.
+
+\subsection{Image encoder and LoRA specification}
+\label{app:image_lora}
+
+The exact base checkpoint is
+\href{https://huggingface.co/laion/CLIP-ViT-B-32-laion2B-s34B-b79K}{\texttt{laion/CLIP-ViT-B-32-laion2B-s34B-b79K}},
+revision \texttt{1a25a446712ba5ee05982a381eed697ef9b435cf}. These are
+LAION-2B-trained OpenCLIP weights consumed through Hugging Face Transformers'
+\texttt{CLIPVisionModelWithProjection}; they are not the original OpenAI
+ViT-B/32 weights. The vision transformer uses 224-pixel inputs, $32\times32$
+patches, 12 transformer blocks, hidden width 768, MLP width 3,072, 12 attention
+heads, and a 512-dimensional output projection.
+
+The associated \texttt{CLIPImageProcessor} converts input images to RGB,
+resizes the shortest edge to 224 with bicubic interpolation, center-crops to
+$224\times224$, rescales pixels by $1/255$, and normalizes RGB channels with
+mean $(0.48145466,0.45782750,0.40821073)$ and standard deviation
+$(0.26862954,0.26130258,0.27577711)$. No random crop, flip, or color jitter is
+applied.
+
+The reference model applies rank-32 LoRA to every \texttt{Linear} module in the
+image encoder. This comprises Q, K, V, and output attention projections and
+both MLP projections in each transformer block, plus the final visual
+projection. Patch convolution and LayerNorm modules are excluded.
+Table~\ref{tab:lora_details} gives the resulting module and parameter counts.
+
+\begin{table}[h]
+  \centering
+  \caption{Rank-32 LoRA placement and trainable image-side parameter count.
+  A linear layer $d_{\mathrm{in}}\rightarrow d_{\mathrm{out}}$ contributes
+  $r(d_{\mathrm{in}}+d_{\mathrm{out}})$ adapter parameters.}
+  \label{tab:lora_details}
+  \small
+  \setlength{\tabcolsep}{5pt}
+  \begin{tabular}{lrrr}
+    \toprule
+    Target group & Modules & Dimensions & LoRA parameters \\
+    \midrule
+    Q/K/V/output projections & 48 & $768\rightarrow768$ & 2,359,296 \\
+    MLP \texttt{fc1}/\texttt{fc2} & 24 & $768\leftrightarrow3{,}072$ & 2,949,120 \\
+    Final visual projection & 1 & $768\rightarrow512$ & 40,960 \\
+    \midrule
+    Total & 73 & -- & \textbf{5,349,376} \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+For every adapted linear layer, $r=32$, $\alpha=32$, LoRA dropout is zero,
+and no LoRA bias is trained, so the multiplier $\alpha/r$ equals one. PEFT's
+\texttt{gaussian} rule initializes $A$ from a zero-mean Gaussian with standard
+deviation $1/r=0.03125$ and initializes $B$ to zero. Consequently, the initial LoRA residual $BA$ is exactly zero, so the
+wrapped model initially matches the frozen base under the same numerical
+precision and preprocessing. Combining the 5,349,376 image-side adapter parameters with
+the 2,701,825 brain-side parameters (including logit scale) gives
+\textbf{8,051,201} trainable parameters in the reference joint model; all
+original image-encoder parameters remain frozen.
 
 \subsection{Additional Results}
-
-% Add supplementary tables or figures here.
 \begin{figure}[t]
   \centering
   \includegraphics[width=0.92\linewidth]{figures/fig_matching_robustness.png}
