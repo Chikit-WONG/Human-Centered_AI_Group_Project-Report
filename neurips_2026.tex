@@ -215,7 +215,7 @@ The A/B/C experiment directly addresses whether the improvement is merely caused
 
 \begin{figure}[t]
   \centering
-  \includegraphics[width=0.78\linewidth]{figures/fig_ablation.png}
+  \includegraphics[width=0.78\linewidth]{figures/figure.png}
   \caption{Strict paired subject-08/seed-42 TTUR ablation. All arms use the identical EEG encoder: A freezes the image encoder, B adds equal-rate image-side LoRA, and C uses slower image-side LoRA updates. Values are independent-retrieval accuracy (\%).}
   \label{fig:ablation}
 \end{figure}
@@ -226,30 +226,51 @@ Relative to A, C gains $+59.5$ Top-1 and $+35.0$ Top-5 points. Because the EEG a
 
 The focused validation grid crosses LoRA rank $r\in\{32,64\}$, EEG learning rate $\eta_e\in\{5\times10^{-4},10^{-3}\}$, and EEG-to-image learning-rate ratio $\rho\in\{5,10,20\}$, for 12 configurations on subject 08/seed 42. Table~\ref{tab:hparam_grid} reports validation scores. The highest validation Top-1 occurs at $(r,\eta_e,\rho)=(64,10^{-3},20)$.
 
-\begin{table}[t]
+\begin{table*}[t]
 \centering
-\caption{Focused subject-08/seed-42 validation grid (\%). Image LR is $\eta_e/\rho$. Bold marks the best value in each metric; Top-1 determines the selected setting.}
-\label{tab:hparam_grid}
-\setlength{\tabcolsep}{5pt}
-\begin{tabular}{rrrrr}
+
+
+\setlength{\tabcolsep}{5.5pt}
+\renewcommand{\arraystretch}{1.08}
+\begin{tabular}{ccrrrrrr}
 \toprule
-Rank & EEG LR & Ratio & Top-1 & Top-5 \\
+& & \multicolumn{2}{c}{Ratio $=5$}
+& \multicolumn{2}{c}{Ratio $=10$}
+& \multicolumn{2}{c}{Ratio $=20$} \\
+\cmidrule(lr){3-4}
+\cmidrule(lr){5-6}
+\cmidrule(lr){7-8}
+Rank & EEG LR
+& Top-1 & Top-5
+& Top-1 & Top-5
+& Top-1 & Top-5 \\
 \midrule
-32 & $5\times10^{-4}$ & 5  &31.03&59.94\\
-32 & $5\times10^{-4}$ & 10 &31.52&60.24\\
-32 & $5\times10^{-4}$ & 20 &29.52&57.64\\
-32 & $10^{-3}$ & 5  &29.76&57.58\\
-32 & $10^{-3}$ & 10 &33.76&62.91\\
-32 & $10^{-3}$ & 20 &32.42&61.82\\
-64 & $5\times10^{-4}$ & 5  &31.27&59.03\\
-64 & $5\times10^{-4}$ & 10 &32.06&60.91\\
-64 & $5\times10^{-4}$ & 20 &30.42&59.52\\
-64 & $10^{-3}$ & 5  &27.39&55.88\\
-64 & $10^{-3}$ & 10 &34.18&\textbf{63.33}\\
-64 & $10^{-3}$ & 20 &\textbf{34.48}&63.03\\
+32 & $5\times10^{-4}$
+& 31.03 & 59.94
+& 31.52 & 60.24
+& 29.52 & 57.64 \\
+
+32 & $10^{-3}$
+& 29.76 & 57.58
+& 33.76 & 62.91
+& 32.42 & 61.82 \\
+\midrule
+64 & $5\times10^{-4}$
+& 31.27 & 59.03
+& 32.06 & 60.91
+& 30.42 & 59.52 \\
+
+64 & $10^{-3}$
+& 27.39 & 55.88
+& 34.18 & \textbf{63.33}
+& \textbf{34.48} & 63.03 \\
 \bottomrule
 \end{tabular}
-\end{table}
+\caption{Focused subject-08/seed-42 validation grid (\%).
+Image LR is $\eta_e/\rho$. Bold marks the best value in each metric;
+Top-1 determines the selected setting.}
+\label{tab:hparam_grid}
+\end{table*}
 
 We then compare the selected configuration with the reference $(32,5\times10^{-4},10)$ across three subject-08 validation seeds and finally all ten subjects at seed 42. The selected validation mean is $34.44\%/63.74\%$ versus $31.23\%/60.97\%$ for the reference. In the formal paired test, Figure~\ref{fig:hparam} shows an average Top-1 increase from $85.85\%$ to $87.70\%$; Top-5 changes from $98.35\%$ to $98.30\%$. The selected setting wins Top-1 on eight of ten subjects, but it changes rank, absolute rate, and ratio jointly and uses one formal seed. The reference was protocol-locked before this focused study and is the only setting evaluated over all ten subjects and five seeds. We therefore do not retroactively replace the stronger-evidence headline with a post-hoc single-seed follow-up; the grid shows that asymmetric co-adaptation is robust to nearby choices, not that the original 10:1 ratio is globally optimal.
 
@@ -288,12 +309,6 @@ The standard session rewards hard global consistency: Hungarian increases assign
 
 The non-bijective suite in Figure~\ref{fig:matching_robustness} changes that conclusion. Removing only images creates unanswerable EEG queries; removing only EEG creates distractor gallery images; duplicate gallery entries create equivalent candidates; and combinations alter both matrix shape and answerability. The realistic disjoint-trial experiment is especially revealing. On the $200\times200$ 20-trial-average base, independent/Hungarian/Sinkhorn achieve $90.0/100.0/99.0\%$. At $210\times200$, they obtain $90.0/92.86/98.10\%$, with Hungarian leaving 10 queries unmatched. At $220\times200$, they obtain $90.45/89.09/96.36\%$, with Hungarian leaving 20 queries unmatched. The hard bijection is therefore beneficial only when its premise is true; multiple legitimate EEG queries per image turn it into a constraint violation.
 
-\begin{figure}[t]
-  \centering
-  \includegraphics[width=0.92\linewidth]{figures/fig_matching_robustness.png}
-  \caption{Matching robustness under missing, duplicate, and distractor items, including disjoint-trial duplicate EEG. Hard one-to-one assignment exposes unmatched queries when bijection is false.}
-  \label{fig:matching_robustness}
-\end{figure}
 
 \subsection{Sinkhorn convergence audit}
 
@@ -351,13 +366,43 @@ Our asymmetric EEG--image co-adaptation reaches $86.66\%$ Top-1 and $98.38\%$ To
 \paragraph{Generative-AI disclosure.}
 OpenAI Codex assisted with code/log inspection, LaTeX/Markdown formatting, and language editing, including prompts to audit the page limit, reconcile saved CSV/JSON results, and repair equations. All outputs were reviewed and revised by the authors; drafts are retained in the project task history, and final claims remain the authors' responsibility.
 
+
+
 \phantomsection
 \label{sec:body_end}
 \clearpage
 \phantomsection
 \label{sec:references}
 
+
 \bibliographystyle{unsrtnat}
 \bibliography{references}
+\clearpage
+
+\appendix
+
+\section{Additional Experimental Details}
+\label{app:experimental_details}
+
+This appendix provides additional implementation details, complete
+experimental results, and supplementary analyses.
+
+\subsection{Additional Implementation Details}
+
+% Add implementation details here.
+
+\subsection{Additional Results}
+
+% Add supplementary tables or figures here.
+\begin{figure}[t]
+  \centering
+  \includegraphics[width=0.92\linewidth]{figures/fig_matching_robustness.png}
+  \caption{Matching robustness under missing, duplicate, and distractor items, including disjoint-trial duplicate EEG. Hard one-to-one assignment exposes unmatched queries when bijection is false.}
+  \label{fig:matching_robustness}
+\end{figure}
+
+
 
 \end{document}
+
+
