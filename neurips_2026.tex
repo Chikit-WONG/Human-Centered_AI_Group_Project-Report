@@ -20,7 +20,9 @@ Chi Kit Wong \\
 Sida Zhang \\
 Zhiyi Chen \\
 Ziyi Guo \\
-AI Thrust, HKUST(GZ)
+AI Thrust\\
+HKUST (GZ)\\
+\texttt{\{ckwong627, szhang644, zchen986, zguo315\}@connect.hkust-gz.edu.cn}
 }
 
 \begin{document}
@@ -257,8 +259,8 @@ Rank & EEG LR & Ratio & Top-1 & Top-5 \\
 64 & $5\times10^{-4}$ & 10 &32.06&60.91\\
 64 & $5\times10^{-4}$ & 20 &30.42&59.52\\
 64 & $10^{-3}$ & 5  &27.39&55.88\\
-64 & $10^{-3}$ & 10 &34.18&63.33\\
-\textbf{64} & $\mathbf{10^{-3}}$ & \textbf{20} &\textbf{34.48}&\textbf{63.03}\\
+64 & $10^{-3}$ & 10 &34.18&\textbf{63.33}\\
+64 & $10^{-3}$ & 20 &\textbf{34.48}&63.03\\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -347,6 +349,9 @@ Flattening discards explicit channel topology, and LoRA placement is not neuroph
 \label{sec:conclusion}
 
 Our asymmetric EEG--image co-adaptation reaches $86.66\%$ Top-1 and $98.38\%$ Top-5 over ten subjects and five seeds. With the EEG encoder fixed, the strict A/B/C ablation rises from $29.5\%$ to $61.5\%$ and $89.0\%$, isolating equal-rate and asymmetric image adaptation; focused tuning reaches $87.70\%$, while strict LOSO falls to $20.40\%$. Hungarian and Sinkhorn improve valid one-to-one assignments, not embeddings or standard Top-5, and weaken when correspondence fails.
+
+\section*{Author contribution statement}
+Clearly explain the contribution of each group member.
 
 \bibliographystyle{unsrtnat}
 \bibliography{references}
